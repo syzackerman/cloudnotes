@@ -36,9 +36,9 @@ spring:
 
 springdoc:
   api-docs:
-    enabled: ${SWAGGER_ENABLED:false}
+    enabled: false
   swagger-ui:
-    enabled: ${SWAGGER_ENABLED:false}
+    enabled: false
     path: /swagger-ui.html
 
 server:
