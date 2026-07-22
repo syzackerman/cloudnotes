@@ -1,0 +1,27 @@
+meta {
+  name: Assign Tags
+  type: http
+  seq: 8
+}
+
+put {
+  url: {{baseUrl}}/api/notes/{{noteId}}/tags
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "tagIds": [
+      "{{tagId}}"
+    ]
+  }
+}

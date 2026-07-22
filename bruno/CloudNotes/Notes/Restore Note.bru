@@ -1,0 +1,15 @@
+meta {
+  name: Restore Note
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/notes/{{noteId}}/restore
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

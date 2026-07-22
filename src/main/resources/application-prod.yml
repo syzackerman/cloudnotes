@@ -1,0 +1,110 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT_MS:5000}
+      idle-timeout: ${DB_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+  flyway:
+    enabled: true
+    validate-on-migrate: true
+    clean-disabled: true
+    out-of-order: false
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  servlet:
+    multipart:
+      max-file-size: ${MAX_FILE_SIZE:10MB}
+      max-request-size: ${MAX_REQUEST_SIZE:10MB}
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:30s}
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+    path: /swagger-ui.html
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  forward-headers-strategy: framework
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:PT1H}
+
+cloudnotes:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  pagination:
+    default-size: ${PAGE_DEFAULT_SIZE:20}
+    max-size: ${PAGE_MAX_SIZE:100}
+    allowed-sort-fields: ${PAGE_ALLOWED_SORT_FIELDS:createdAt,updatedAt,title}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    login:
+      capacity: ${RATE_LIMIT_LOGIN_CAPACITY:10}
+      window: ${RATE_LIMIT_LOGIN_WINDOW:PT1M}
+    registration:
+      capacity: ${RATE_LIMIT_REGISTRATION_CAPACITY:5}
+      window: ${RATE_LIMIT_REGISTRATION_WINDOW:PT1H}
+    upload:
+      capacity: ${RATE_LIMIT_UPLOAD_CAPACITY:30}
+      window: ${RATE_LIMIT_UPLOAD_WINDOW:PT1H}
+    download-url:
+      capacity: ${RATE_LIMIT_DOWNLOAD_URL_CAPACITY:60}
+      window: ${RATE_LIMIT_DOWNLOAD_URL_WINDOW:PT1M}
+  storage:
+    region: ${AWS_REGION}
+    bucket: ${AWS_S3_BUCKET}
+    download-url-expiration: ${DOWNLOAD_URL_EXPIRATION:PT5M}
+    max-file-size: ${MAX_FILE_SIZE:10MB}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS:health}
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+    prometheus:
+      enabled: ${MANAGEMENT_PROMETHEUS_ENABLED:false}
+  health:
+    diskspace:
+      enabled: true
+    db:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: ${MANAGEMENT_PROMETHEUS_ENABLED:false}
+
+logging:
+  level:
+    root: INFO
+    com.cloudnotes: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.security: INFO
+    software.amazon.awssdk: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] [%X{requestId:-none}] [%X{httpMethod:-} %X{requestPath:-}] %logger{36} - %msg%n"

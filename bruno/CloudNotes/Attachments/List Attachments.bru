@@ -1,0 +1,15 @@
+meta {
+  name: List Attachments
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/notes/{{noteId}}/attachments
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

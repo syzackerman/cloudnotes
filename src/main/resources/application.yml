@@ -1,0 +1,78 @@
+spring:
+  application:
+    name: cloudnotes
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/cloudnotes}
+    username: ${DATABASE_USERNAME:cloudnotes}
+    password: ${DATABASE_PASSWORD:cloudnotes}
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: ${MAX_FILE_SIZE:10MB}
+      max-request-size: ${MAX_REQUEST_SIZE:10MB}
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /swagger-ui.html
+
+jwt:
+  secret: ${JWT_SECRET:}
+  expiration: ${JWT_EXPIRATION:PT1H}
+
+cloudnotes:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  pagination:
+    default-size: ${PAGE_DEFAULT_SIZE:20}
+    max-size: ${PAGE_MAX_SIZE:100}
+    allowed-sort-fields: ${PAGE_ALLOWED_SORT_FIELDS:createdAt,updatedAt,title}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    login:
+      capacity: ${RATE_LIMIT_LOGIN_CAPACITY:10}
+      window: ${RATE_LIMIT_LOGIN_WINDOW:PT1M}
+    registration:
+      capacity: ${RATE_LIMIT_REGISTRATION_CAPACITY:5}
+      window: ${RATE_LIMIT_REGISTRATION_WINDOW:PT1H}
+    upload:
+      capacity: ${RATE_LIMIT_UPLOAD_CAPACITY:30}
+      window: ${RATE_LIMIT_UPLOAD_WINDOW:PT1H}
+    download-url:
+      capacity: ${RATE_LIMIT_DOWNLOAD_URL_CAPACITY:60}
+      window: ${RATE_LIMIT_DOWNLOAD_URL_WINDOW:PT1M}
+  storage:
+    region: ${AWS_REGION:us-east-1}
+    bucket: ${AWS_S3_BUCKET:}
+    download-url-expiration: ${DOWNLOAD_URL_EXPIRATION:PT5M}
+    max-file-size: ${MAX_FILE_SIZE:10MB}
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS:health}
+  endpoint:
+    health:
+      probes:
+        enabled: true
+    prometheus:
+      enabled: ${MANAGEMENT_PROMETHEUS_ENABLED:false}
+  prometheus:
+    metrics:
+      export:
+        enabled: ${MANAGEMENT_PROMETHEUS_ENABLED:false}

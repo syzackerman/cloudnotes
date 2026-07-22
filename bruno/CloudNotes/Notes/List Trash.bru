@@ -1,0 +1,15 @@
+meta {
+  name: List Trash
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/notes/trash?page=0&size=20&sort=updatedAt,desc
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Delete Attachment
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/api/notes/{{noteId}}/attachments/{{attachmentId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

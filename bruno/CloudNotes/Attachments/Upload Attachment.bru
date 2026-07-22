@@ -1,0 +1,25 @@
+meta {
+  name: Upload Attachment
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/notes/{{noteId}}/attachments
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:multipart-form {
+  file: @file(./example.txt)
+}
+
+script:post-response {
+  if (res.body && res.body.id) {
+    bru.setEnvVar("attachmentId", res.body.id);
+  }
+}

@@ -1,0 +1,14 @@
+aws_region = "us-east-1"
+
+admin_ssh_cidr = "203.0.113.10/32"
+ami_id         = "ami-xxxxxxxxxxxxxxxxx"
+
+s3_bucket_name = "cloudnotes-prod-attachments-example"
+
+github_repository = "your-github-owner/your-repository"
+
+# Keep production deletion protection enabled unless you are intentionally
+# creating a disposable test environment.
+db_deletion_protection = true
+
+# Cost-impacting resources include EC2, RDS, EBS, Elastic IP, S3, ECR, and CloudWatch logs.

@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: cloudnotes-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cloudnotes}
+      POSTGRES_USER: ${DATABASE_USERNAME:-cloudnotes}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-cloudnotes}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cloudnotes
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cloudnotes:local
+    container_name: cloudnotes-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-cloudnotes}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-cloudnotes}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-cloudnotes}
+      JWT_SECRET: ${JWT_SECRET:-local-development-jwt-secret-change-me-32chars-minimum}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-PT1H}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      MANAGEMENT_PROMETHEUS_ENABLED: ${MANAGEMENT_PROMETHEUS_ENABLED:-false}
+      MANAGEMENT_ENDPOINTS: ${MANAGEMENT_ENDPOINTS:-health}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_LOGIN_CAPACITY: ${RATE_LIMIT_LOGIN_CAPACITY:-10}
+      RATE_LIMIT_LOGIN_WINDOW: ${RATE_LIMIT_LOGIN_WINDOW:-PT1M}
+      RATE_LIMIT_REGISTRATION_CAPACITY: ${RATE_LIMIT_REGISTRATION_CAPACITY:-5}
+      RATE_LIMIT_REGISTRATION_WINDOW: ${RATE_LIMIT_REGISTRATION_WINDOW:-PT1H}
+      RATE_LIMIT_UPLOAD_CAPACITY: ${RATE_LIMIT_UPLOAD_CAPACITY:-30}
+      RATE_LIMIT_UPLOAD_WINDOW: ${RATE_LIMIT_UPLOAD_WINDOW:-PT1H}
+      RATE_LIMIT_DOWNLOAD_URL_CAPACITY: ${RATE_LIMIT_DOWNLOAD_URL_CAPACITY:-60}
+      RATE_LIMIT_DOWNLOAD_URL_WINDOW: ${RATE_LIMIT_DOWNLOAD_URL_WINDOW:-PT1M}
+      PAGE_DEFAULT_SIZE: ${PAGE_DEFAULT_SIZE:-20}
+      PAGE_MAX_SIZE: ${PAGE_MAX_SIZE:-100}
+      PAGE_ALLOWED_SORT_FIELDS: ${PAGE_ALLOWED_SORT_FIELDS:-createdAt,updatedAt,title}
+      DOWNLOAD_URL_EXPIRATION: ${DOWNLOAD_URL_EXPIRATION:-PT5M}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
+      MAX_REQUEST_SIZE: ${MAX_REQUEST_SIZE:-10MB}
+      SERVER_PORT: 8080
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+    networks:
+      - cloudnotes
+
+volumes:
+  postgres-data:
+
+networks:
+  cloudnotes:
+    driver: bridge

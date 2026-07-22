@@ -1,0 +1,26 @@
+meta {
+  name: Update Note
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/notes/{{noteId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Updated CloudNotes demo note",
+    "content": "Updated from the Bruno collection."
+  }
+}

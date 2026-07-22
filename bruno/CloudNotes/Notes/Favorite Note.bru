@@ -1,0 +1,25 @@
+meta {
+  name: Favorite Note
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/notes/{{noteId}}/favorite
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "favorite": true
+  }
+}

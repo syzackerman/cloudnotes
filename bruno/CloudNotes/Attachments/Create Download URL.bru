@@ -1,0 +1,15 @@
+meta {
+  name: Create Download URL
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/notes/{{noteId}}/attachments/{{attachmentId}}/download
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
