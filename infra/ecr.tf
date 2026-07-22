@@ -18,7 +18,7 @@ resource "aws_ecr_lifecycle_policy" "cloudnotes" {
         selection = {
           tagStatus   = "any"
           countType   = "imageCountMoreThan"
-          countNumber = 30
+          countNumber = var.ecr_images_to_keep
         }
         action = {
           type = "expire"

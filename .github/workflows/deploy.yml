@@ -1,14 +1,10 @@
 name: Deploy
 
 on:
-  workflow_run:
-    workflows:
-      - CI
+  workflow_dispatch:
+  push:
     branches:
       - main
-    types:
-      - completed
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,7 +12,6 @@ permissions:
 
 jobs:
   deploy-production:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -24,6 +19,7 @@ jobs:
       AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
       EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+      AWS_S3_BUCKET: ${{ vars.AWS_S3_BUCKET }}
       DEPLOY_APP_DIR: ${{ vars.DEPLOY_APP_DIR || '/opt/cloudnotes' }}
       APP_HEALTH_URL: ${{ vars.APP_HEALTH_URL }}
 
@@ -44,7 +40,7 @@ jobs:
       - name: Configure AWS credentials with OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
@@ -59,12 +55,25 @@ jobs:
           docker push "$IMAGE_URI"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
+      - name: Upload deployment bundle
+        run: |
+          set -euo pipefail
+          tar -czf cloudnotes-deploy-bundle.tgz docker-compose.prod.yml deploy scripts
+          aws s3 cp cloudnotes-deploy-bundle.tgz "s3://${AWS_S3_BUCKET}/deployments/${GITHUB_SHA}/cloudnotes-deploy-bundle.tgz"
+
       - name: Deploy on EC2 through SSM Run Command
         id: ssm
         run: |
           set -euo pipefail
           IMAGE_URI="${{ steps.image.outputs.image_uri }}"
-          COMMAND="cd ${DEPLOY_APP_DIR} && AWS_REGION=${AWS_REGION} APP_DIR=${DEPLOY_APP_DIR} HEALTH_URL=http://localhost/actuator/health scripts/deploy.sh '${IMAGE_URI}'"
+          BUNDLE_URI="s3://${AWS_S3_BUCKET}/deployments/${GITHUB_SHA}/cloudnotes-deploy-bundle.tgz"
+          COMMAND="set -euo pipefail
+          mkdir -p '${DEPLOY_APP_DIR}'
+          cd '${DEPLOY_APP_DIR}'
+          aws s3 cp '${BUNDLE_URI}' /tmp/cloudnotes-deploy-bundle.tgz
+          tar -xzf /tmp/cloudnotes-deploy-bundle.tgz
+          chmod +x scripts/*.sh
+          AWS_REGION='${AWS_REGION}' AWS_S3_BUCKET='${AWS_S3_BUCKET}' APP_DIR='${DEPLOY_APP_DIR}' HEALTH_URL=http://localhost/actuator/health scripts/deploy.sh '${IMAGE_URI}'"
           COMMAND_ID="$(aws ssm send-command \
             --instance-ids "$EC2_INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \

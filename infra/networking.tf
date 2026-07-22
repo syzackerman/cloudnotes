@@ -1,6 +1,7 @@
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
-  azs         = length(var.availability_zones) > 0 ? var.availability_zones : slice(data.aws_availability_zones.available.names, 0, 2)
+  az_count    = max(length(var.public_subnet_cidrs), length(var.private_db_subnet_cidrs), 1)
+  azs         = length(var.availability_zones) > 0 ? var.availability_zones : slice(data.aws_availability_zones.available.names, 0, local.az_count)
 }
 
 resource "aws_vpc" "main" {

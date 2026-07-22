@@ -13,7 +13,6 @@ Use this as the production readiness runbook before a real AWS launch.
 
 ```bash
 ECR_IMAGE_URI=example.com/cloudnotes:latest \
-DATABASE_URL=jdbc:postgresql://db.example.com:5432/cloudnotes \
 DATABASE_USERNAME=cloudnotes \
 DATABASE_PASSWORD=placeholder \
 JWT_SECRET=placeholder-placeholder-placeholder-32 \
@@ -36,7 +35,8 @@ docker compose down -v
 
 - [ ] Choose AWS region and confirm expected cost.
 - [ ] Copy `infra/terraform.tfvars.example` to a local, untracked tfvars file.
-- [ ] Set a real `admin_ssh_cidr`, `ami_id`, globally unique `s3_bucket_name`, and optional `github_repository`.
+- [ ] Set a globally unique `s3_bucket_name` and `github_repository`.
+- [ ] Keep `enable_rds=false`, `enable_elastic_ip=false`, and `enable_ssh_ingress=false` unless you intentionally accept the extra cost or exposure.
 - [ ] Run:
 
 ```bash
@@ -50,23 +50,21 @@ terraform -chdir=infra validate
 ## AWS Manual Setup
 
 - [ ] Create or choose DNS hostname for the API.
-- [ ] Apply Terraform.
-- [ ] Create least-privilege application database user in RDS.
+- [ ] Review Terraform plan and estimated monthly cost.
+- [ ] Apply Terraform only after approving the plan.
 - [ ] Store runtime values in SSM Parameter Store:
-  - `/cloudnotes/prod/database-url`
-  - `/cloudnotes/prod/database-username`
   - `/cloudnotes/prod/database-password`
   - `/cloudnotes/prod/jwt-secret`
-  - `/cloudnotes/prod/s3-bucket`
 - [ ] Configure GitHub repository variables:
   - `AWS_REGION`
   - `AWS_ACCOUNT_ID`
-  - `AWS_DEPLOY_ROLE_ARN`
   - `ECR_REPOSITORY`
   - `EC2_INSTANCE_ID`
+  - `AWS_S3_BUCKET`
   - `APP_HEALTH_URL`
-- [ ] Bootstrap EC2 with `scripts/bootstrap-ec2.sh`.
-- [ ] Copy `docker-compose.prod.yml`, `deploy/`, and `scripts/` into the EC2 app directory.
+- [ ] Configure GitHub repository or environment secret:
+  - `AWS_DEPLOY_ROLE_ARN`
+- [ ] Confirm EC2 bootstrapped successfully through user data or run `scripts/bootstrap-ec2.sh` manually.
 - [ ] Request TLS with `scripts/request-certificate.sh`.
 - [ ] Deploy through GitHub Actions or `scripts/deploy.sh`.
 

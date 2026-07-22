@@ -3,6 +3,8 @@
 ![Java 21](https://img.shields.io/badge/Java-21-orange)
 ![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen)
 ![Docker](https://img.shields.io/badge/Docker-ready-blue)
+![CI](https://github.com/syzackerman/cloudnotes/actions/workflows/ci.yml/badge.svg)
+![Deploy](https://github.com/syzackerman/cloudnotes/actions/workflows/deploy.yml/badge.svg)
 
 CloudNotes is a Java 21 Spring Boot REST API for secure multi-user note management with JWT authentication, PostgreSQL, private S3 attachments, Docker, CI/CD, and AWS deployment infrastructure.
 
@@ -12,7 +14,7 @@ CloudNotes is a Java 21 Spring Boot REST API for secure multi-user note manageme
 flowchart TD
     Client["Client"] --> Nginx["Nginx HTTPS Reverse Proxy"]
     Nginx --> Spring["Spring Boot CloudNotes API"]
-    Spring --> PostgreSQL["PostgreSQL / Amazon RDS"]
+    Spring --> PostgreSQL["PostgreSQL container on EC2 EBS"]
     Spring --> S3["Private Amazon S3 Attachments"]
 
     GHA["GitHub Actions"] --> ECR["Amazon ECR"]
@@ -65,7 +67,7 @@ sequenceDiagram
 | Observability | Actuator, Micrometer, Prometheus registry |
 | Quality | JUnit, MockMvc, JaCoCo, Spotless |
 | Delivery | Maven, Docker, Docker Compose, GitHub Actions |
-| AWS | EC2, RDS, S3, ECR, IAM, Systems Manager, Terraform, Nginx, Let's Encrypt |
+| AWS | EC2, S3, ECR, IAM, Systems Manager, Terraform, Nginx, Let's Encrypt |
 
 ## Security Design
 
@@ -236,7 +238,7 @@ Validate Compose and shell scripts:
 
 ```bash
 docker compose config
-ECR_IMAGE_URI=example.com/cloudnotes:latest DATABASE_URL=jdbc:postgresql://db.example.com:5432/cloudnotes DATABASE_USERNAME=cloudnotes DATABASE_PASSWORD=placeholder JWT_SECRET=placeholder-placeholder-placeholder-32 AWS_REGION=us-east-1 AWS_S3_BUCKET=placeholder docker compose -f docker-compose.prod.yml config
+ECR_IMAGE_URI=example.com/cloudnotes:latest DATABASE_PASSWORD=placeholder JWT_SECRET=placeholder-placeholder-placeholder-32 AWS_REGION=us-east-1 AWS_S3_BUCKET=placeholder docker compose -f docker-compose.prod.yml config
 bash -n scripts/*.sh
 ```
 
@@ -274,27 +276,42 @@ Production monitoring should scrape metrics through private networking, localhos
 CloudNotes is prepared for this first production topology:
 
 ```text
-Client -> HTTPS -> Nginx on EC2 -> Spring Boot container -> Amazon RDS PostgreSQL
+Client -> HTTPS -> Nginx on EC2 -> Spring Boot container -> PostgreSQL container on EC2
                                                        -> Private S3 bucket
+
+GitHub Actions -> Amazon ECR -> EC2 through SSM Run Command
 ```
 
 Detailed deployment guidance is in [docs/aws-production-deployment.md](docs/aws-production-deployment.md). Terraform files are in [infra](infra).
 The operational checklist is in [docs/deployment-checklist.md](docs/deployment-checklist.md).
 
+Live API URL:
+
+```text
+https://YOUR_API_DOMAIN
+```
+
+Swagger URL:
+
+```text
+Local/dev only: http://localhost:8080/swagger-ui/index.html
+Production: disabled by the prod profile
+```
+
 High-level order:
 
 1. Configure AWS account, region, DNS, and GitHub OIDC.
-2. Review and apply Terraform from `infra`.
-3. Store runtime values in Systems Manager Parameter Store or another secret store.
-4. Build and push an immutable image to ECR.
-5. Bootstrap EC2, configure Nginx and TLS, then deploy with `scripts/deploy.sh`.
-6. Verify health, auth, notes, and attachments.
+2. Copy `infra/terraform.tfvars.example` to an untracked tfvars file and set `s3_bucket_name` and `github_repository`.
+3. Run `terraform plan` and review cost before applying anything.
+4. After apply, store `/cloudnotes/prod/database-password` and `/cloudnotes/prod/jwt-secret` as SSM standard `SecureString` parameters.
+5. Configure GitHub repository variables and secrets.
+6. Push to `main`; GitHub Actions verifies the app, pushes an image to ECR, uploads a tiny deployment bundle to S3, deploys through SSM Run Command, and checks health.
 
 Production runtime values include:
 
 ```bash
-DATABASE_URL=jdbc:postgresql://RDS_ENDPOINT:5432/cloudnotes
-DATABASE_USERNAME=cloudnotes_app
+DATABASE_URL=jdbc:postgresql://postgres:5432/cloudnotes
+DATABASE_USERNAME=cloudnotes
 DATABASE_PASSWORD=replace-with-secret
 JWT_SECRET=replace-with-strong-secret
 AWS_REGION=us-east-1
@@ -304,6 +321,62 @@ CORS_ALLOWED_ORIGINS=https://app.example.com
 ```
 
 Do not commit real `.env` files, Terraform state, certificates, JWTs, presigned URLs, or AWS credentials.
+
+### Near-Free AWS Cost Target
+
+The default Terraform path intentionally avoids NAT Gateway, RDS, ALB, and Elastic IP. Expected resources:
+
+- One `t3.micro` EC2 instance.
+- One 20 GB encrypted gp3 root EBS volume.
+- One private S3 bucket.
+- One private ECR repository with only the last two images retained.
+- IAM roles/policies, VPC, subnet, route table, security group, Internet Gateway, and SSM usage.
+
+Estimated monthly cost in `us-east-1`:
+
+- New/free-tier eligible account: approximately `$0-$5/month`, usually dominated by public IPv4 hourly charges and small ECR/S3 overages.
+- Non-free-tier account: approximately `$12-$15/month` for always-on `t3.micro`, public IPv4, and 20 GB EBS, plus small S3/ECR usage.
+
+Always confirm with AWS Pricing Calculator before applying. Public IPv4 addresses are charged even when attached, and Free Tier eligibility depends on account age and usage.
+
+### Required GitHub Configuration
+
+Repository variables:
+
+```text
+AWS_REGION
+AWS_ACCOUNT_ID
+ECR_REPOSITORY
+EC2_INSTANCE_ID
+AWS_S3_BUCKET
+APP_HEALTH_URL
+DEPLOY_APP_DIR
+```
+
+Repository or environment secrets:
+
+```text
+AWS_DEPLOY_ROLE_ARN
+```
+
+Runtime app secrets are stored on AWS as standard SSM `SecureString` parameters, not in Terraform state:
+
+```text
+/cloudnotes/prod/database-password
+/cloudnotes/prod/jwt-secret
+```
+
+### Cleanup
+
+To avoid ongoing charges:
+
+```bash
+terraform -chdir=infra destroy
+aws ecr delete-repository --repository-name cloudnotes --force
+aws s3 rb s3://YOUR_BUCKET_NAME --force
+```
+
+Also delete any manually created Parameter Store values, DNS records, local Terraform state, EBS snapshots, and ACM/Let's Encrypt artifacts you no longer need.
 
 ## Environment Variables
 
@@ -337,12 +410,13 @@ The CI workflow runs:
 - Docker Compose configuration validation
 - Compose startup and health check
 
-The deploy workflow runs only after CI succeeds on `main` or through manual dispatch. It uses GitHub OIDC to assume an AWS role, pushes a SHA-tagged image to ECR, and deploys to EC2 through Systems Manager Run Command.
+The deploy workflow runs on pushes to `main` or through manual dispatch. It uses GitHub OIDC to assume an AWS role, pushes a SHA-tagged image to ECR, uploads the deployment bundle to S3, deploys to EC2 through Systems Manager Run Command, and checks the public health endpoint.
 
-A CI badge should be added after publishing to GitHub because this local repository has no configured remote yet. Use the real `OWNER/REPO` path:
+Deployment badges use the configured GitHub repository:
 
 ```markdown
-![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/syzackerman/cloudnotes/actions/workflows/ci.yml/badge.svg)
+![Deploy](https://github.com/syzackerman/cloudnotes/actions/workflows/deploy.yml/badge.svg)
 ```
 
 ## Project Structure
@@ -403,7 +477,7 @@ Production-oriented Java 21 Spring Boot REST API for secure multi-user notes: JW
 One-minute demo script:
 
 ```text
-CloudNotes is a production-oriented Spring Boot backend for secure note management. Requests enter through Nginx, reach a stateless Spring Boot API, and persist data in PostgreSQL with Flyway-managed migrations. Authentication uses JWTs and BCrypt, and every notes, tags, trash, restore, delete, and attachment operation is scoped to the authenticated user. Attachments stay private in S3; the API stores metadata and returns short-lived presigned download URLs only after ownership checks. The project includes Swagger/OpenAPI, consistent JSON errors with request IDs, rate limiting, Prometheus-ready metrics, Docker Compose for local runs, Terraform for AWS EC2/RDS/S3/ECR/IAM, and GitHub Actions that verify tests, coverage, formatting, Terraform, Docker, and Compose health.
+CloudNotes is a production-oriented Spring Boot backend for secure note management. Requests enter through Nginx, reach a stateless Spring Boot API, and persist data in PostgreSQL with Flyway-managed migrations. Authentication uses JWTs and BCrypt, and every notes, tags, trash, restore, delete, and attachment operation is scoped to the authenticated user. Attachments stay private in S3; the API stores metadata and returns short-lived presigned download URLs only after ownership checks. The project includes Swagger/OpenAPI, consistent JSON errors with request IDs, rate limiting, Prometheus-ready metrics, Docker Compose for local runs, low-cost Terraform for AWS EC2/S3/ECR/IAM/SSM, and GitHub Actions that verify and deploy the API.
 ```
 
 ## Resume-Ready Summary
@@ -413,7 +487,7 @@ CloudNotes is a production-oriented Spring Boot backend demonstrating secure mul
 Resume bullets:
 
 - Built a secure Java 21 Spring Boot REST API with JWT authentication, BCrypt password hashing, ownership-filtered repositories, consistent error responses, request correlation IDs, and tests for auth/security boundaries.
-- Implemented PostgreSQL/Flyway persistence, note search/tags/favorites/soft deletion, private S3 attachments with presigned URLs, Dockerized local development, and Terraform AWS infrastructure for EC2, RDS, S3, ECR, and IAM.
+- Implemented PostgreSQL/Flyway persistence, note search/tags/favorites/soft deletion, private S3 attachments with presigned URLs, Dockerized local development, and low-cost Terraform AWS infrastructure for EC2, S3, ECR, IAM, and SSM.
 - Added GitHub Actions CI/CD with formatting checks, Maven tests, JaCoCo coverage, Docker builds, deployment via OIDC and SSM, configurable Prometheus metrics, rate limiting, and smoke/demo automation.
 
 ## Final Project Checklist
@@ -429,7 +503,7 @@ Resume bullets:
 ⚠ Needs manual AWS setup:
 
 - AWS account, DNS domain, Route 53 or external DNS record, production AMI selection, and cost review
-- Terraform variables, `terraform apply`, RDS app user creation, SSM Parameter Store values, and GitHub Actions repository variables
+- Terraform variables, `terraform plan`, reviewed `terraform apply`, SSM Parameter Store values, and GitHub Actions repository variables/secrets
 - EC2 bootstrap, TLS certificate request, real S3 bucket name, real CORS origin, and first production deploy
 
 ❌ Missing:

@@ -26,15 +26,16 @@ variable "vpc_cidr" {
 
 variable "public_subnet_cidrs" {
   type    = list(string)
-  default = ["10.40.1.0/24", "10.40.2.0/24"]
+  default = ["10.40.1.0/24"]
 }
 
 variable "private_db_subnet_cidrs" {
   type    = list(string)
-  default = ["10.40.101.0/24", "10.40.102.0/24"]
+  default = []
 }
 
 variable "admin_ssh_cidr" {
+  default     = "203.0.113.10/32"
   type        = string
   description = "Administrator IP CIDR allowed to SSH to EC2, for example 203.0.113.10/32. Prefer SSM-only administration when possible."
 
@@ -46,12 +47,13 @@ variable "admin_ssh_cidr" {
 
 variable "ami_id" {
   type        = string
-  description = "Ubuntu AMI ID for the EC2 instance."
+  default     = null
+  description = "Optional EC2 AMI override. When null, Terraform uses the latest Amazon Linux 2023 x86_64 AMI from the AWS public SSM parameter store."
 }
 
 variable "ec2_instance_type" {
   type    = string
-  default = "t3.small"
+  default = "t3.micro"
 }
 
 variable "root_volume_size_gb" {
@@ -61,7 +63,25 @@ variable "root_volume_size_gb" {
 
 variable "enable_elastic_ip" {
   type    = bool
-  default = true
+  default = false
+}
+
+variable "enable_ssh_ingress" {
+  type        = bool
+  default     = false
+  description = "Set true only when SSH is required. SSM Session Manager is preferred and needs no inbound SSH."
+}
+
+variable "enable_ec2_bootstrap" {
+  type        = bool
+  default     = true
+  description = "Run the repository bootstrap script as EC2 user data to install Docker and prepare /opt/cloudnotes."
+}
+
+variable "enable_rds" {
+  type        = bool
+  default     = false
+  description = "Optional paid managed PostgreSQL. Keep false for the near-free single-EC2 deployment."
 }
 
 variable "db_instance_class" {
@@ -119,6 +139,18 @@ variable "s3_object_prefix" {
   default = "users/*"
 }
 
+variable "s3_deployment_prefix" {
+  type        = string
+  default     = "deployments/*"
+  description = "Private S3 prefix used by GitHub Actions to stage small deployment bundles for EC2."
+}
+
+variable "s3_versioning_enabled" {
+  type        = bool
+  default     = false
+  description = "Keep disabled for lowest cost. Enable if attachment version recovery is required."
+}
+
 variable "ssm_parameter_path" {
   type    = string
   default = "/cloudnotes/prod"
@@ -144,4 +176,10 @@ variable "github_environment" {
 variable "ecr_image_tag_mutability" {
   type    = string
   default = "IMMUTABLE"
+}
+
+variable "ecr_images_to_keep" {
+  type        = number
+  default     = 2
+  description = "Small image retention count to keep ECR storage close to the free tier."
 }

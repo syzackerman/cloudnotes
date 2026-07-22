@@ -1,10 +1,15 @@
+data "aws_ssm_parameter" "amazon_linux_2023_ami" {
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+}
+
 resource "aws_instance" "app" {
-  ami                         = var.ami_id
+  ami                         = coalesce(var.ami_id, data.aws_ssm_parameter.amazon_linux_2023_ami.value)
   instance_type               = var.ec2_instance_type
   subnet_id                   = aws_subnet.public[0].id
   vpc_security_group_ids      = [aws_security_group.ec2.id]
   iam_instance_profile        = aws_iam_instance_profile.ec2.name
   associate_public_ip_address = !var.enable_elastic_ip
+  user_data                   = var.enable_ec2_bootstrap ? file("${path.module}/../scripts/bootstrap-ec2.sh") : null
 
   root_block_device {
     encrypted   = true

@@ -7,11 +7,11 @@ output "ec2_public_ip" {
 }
 
 output "rds_endpoint" {
-  value = aws_db_instance.postgres.address
+  value = var.enable_rds ? aws_db_instance.postgres[0].address : null
 }
 
 output "rds_database_name" {
-  value = aws_db_instance.postgres.db_name
+  value = var.enable_rds ? aws_db_instance.postgres[0].db_name : null
 }
 
 output "s3_bucket_name" {

@@ -39,6 +39,26 @@ set_from_env_or_parameter() {
   export "$variable_name=$fetched_value"
 }
 
+set_from_env_or_parameter_or_default() {
+  local variable_name="$1"
+  local parameter_name="$2"
+  local default_value="$3"
+  local current_value="${!variable_name:-}"
+
+  if [[ -n "$current_value" ]]; then
+    export "$variable_name=$current_value"
+    return
+  fi
+
+  local fetched_value
+  if fetched_value="$(fetch_parameter "$parameter_name" 2>/dev/null)"; then
+    export "$variable_name=$fetched_value"
+    return
+  fi
+
+  export "$variable_name=$default_value"
+}
+
 require_nonempty() {
   local variable_name="$1"
   if [[ -z "${!variable_name:-}" ]]; then
@@ -55,6 +75,7 @@ cd "$APP_DIR"
 export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-prod}"
 export JWT_EXPIRATION="${JWT_EXPIRATION:-PT1H}"
 export SERVER_PORT="${SERVER_PORT:-8080}"
+export POSTGRES_DB="${POSTGRES_DB:-cloudnotes}"
 export DB_POOL_MAX_SIZE="${DB_POOL_MAX_SIZE:-10}"
 export DB_POOL_MIN_IDLE="${DB_POOL_MIN_IDLE:-2}"
 export DB_CONNECTION_TIMEOUT_MS="${DB_CONNECTION_TIMEOUT_MS:-30000}"
@@ -67,11 +88,11 @@ if [[ -z "$AWS_REGION" ]]; then
   exit 1
 fi
 
-set_from_env_or_parameter DATABASE_URL "database-url"
-set_from_env_or_parameter DATABASE_USERNAME "database-username"
+set_from_env_or_parameter_or_default DATABASE_URL "database-url" "jdbc:postgresql://postgres:5432/cloudnotes"
+set_from_env_or_parameter_or_default DATABASE_USERNAME "database-username" "cloudnotes"
 set_from_env_or_parameter DATABASE_PASSWORD "database-password"
 set_from_env_or_parameter JWT_SECRET "jwt-secret"
-set_from_env_or_parameter AWS_S3_BUCKET "s3-bucket"
+set_from_env_or_parameter_or_default AWS_S3_BUCKET "s3-bucket" "${AWS_S3_BUCKET:-}"
 
 if [[ -z "${ECR_IMAGE_URI:-}" && -f "$APP_DIR/.current-image" ]]; then
   ECR_IMAGE_URI="$(<"$APP_DIR/.current-image")"

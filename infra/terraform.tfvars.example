@@ -1,14 +1,21 @@
 aws_region = "us-east-1"
 
-admin_ssh_cidr = "203.0.113.10/32"
-ami_id         = "ami-xxxxxxxxxxxxxxxxx"
+# Keep these defaults for the lowest-cost portfolio deployment.
+ec2_instance_type     = "t3.micro"
+root_volume_size_gb   = 20
+enable_elastic_ip     = false
+enable_ssh_ingress    = false
+enable_rds            = false
+ecr_images_to_keep    = 2
+s3_versioning_enabled = false
 
 s3_bucket_name = "cloudnotes-prod-attachments-example"
 
-github_repository = "your-github-owner/your-repository"
+github_repository = "syzackerman/cloudnotes"
 
-# Keep production deletion protection enabled unless you are intentionally
-# creating a disposable test environment.
-db_deletion_protection = true
+# Set these only if you intentionally enable SSH or RDS.
+admin_ssh_cidr          = "203.0.113.10/32"
+private_db_subnet_cidrs = []
 
-# Cost-impacting resources include EC2, RDS, EBS, Elastic IP, S3, ECR, and CloudWatch logs.
+# Cost-impacting resources include EC2, public IPv4, EBS, S3, ECR, and CloudWatch logs.
+# RDS, NAT Gateway, ALB, and Elastic IP are intentionally disabled by default.

@@ -32,6 +32,14 @@ data "aws_iam_policy_document" "ec2_permissions" {
   }
 
   statement {
+    sid = "ReadCloudNotesDeploymentBundles"
+    actions = [
+      "s3:GetObject"
+    ]
+    resources = ["${aws_s3_bucket.attachments.arn}/${var.s3_deployment_prefix}"]
+  }
+
+  statement {
     sid = "ReadCloudNotesParameters"
     actions = [
       "ssm:GetParameter",
@@ -154,6 +162,14 @@ data "aws_iam_policy_document" "github_deploy_permissions" {
       "ecr:UploadLayerPart"
     ]
     resources = [aws_ecr_repository.cloudnotes.arn]
+  }
+
+  statement {
+    sid = "UploadCloudNotesDeploymentBundle"
+    actions = [
+      "s3:PutObject"
+    ]
+    resources = ["${aws_s3_bucket.attachments.arn}/${var.s3_deployment_prefix}"]
   }
 
   statement {

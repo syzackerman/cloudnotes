@@ -1,4 +1,6 @@
 resource "aws_db_subnet_group" "main" {
+  count = var.enable_rds ? 1 : 0
+
   name       = "${local.name_prefix}-db-subnet-group"
   subnet_ids = aws_subnet.private_db[*].id
 
@@ -8,6 +10,8 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "aws_db_instance" "postgres" {
+  count = var.enable_rds ? 1 : 0
+
   identifier                   = "${local.name_prefix}-postgres"
   engine                       = "postgres"
   engine_version               = var.db_engine_version
@@ -18,8 +22,8 @@ resource "aws_db_instance" "postgres" {
   db_name                      = var.db_name
   username                     = var.db_master_username
   manage_master_user_password  = true
-  db_subnet_group_name         = aws_db_subnet_group.main.name
-  vpc_security_group_ids       = [aws_security_group.rds.id]
+  db_subnet_group_name         = aws_db_subnet_group.main[0].name
+  vpc_security_group_ids       = [aws_security_group.rds[0].id]
   publicly_accessible          = false
   multi_az                     = var.db_multi_az
   backup_retention_period      = var.db_backup_retention_days

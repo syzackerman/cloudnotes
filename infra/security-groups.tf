@@ -3,12 +3,16 @@ resource "aws_security_group" "ec2" {
   description = "CloudNotes EC2 reverse proxy security group"
   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    description = "SSH from administrator CIDR only"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.admin_ssh_cidr]
+  dynamic "ingress" {
+    for_each = var.enable_ssh_ingress ? [1] : []
+
+    content {
+      description = "SSH from administrator CIDR only"
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = [var.admin_ssh_cidr]
+    }
   }
 
   ingress {
@@ -28,7 +32,7 @@ resource "aws_security_group" "ec2" {
   }
 
   egress {
-    description = "Outbound internet access for updates, ECR, SSM, S3, and RDS"
+    description = "Outbound internet access for updates, ECR, SSM, S3, and optional RDS"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -41,6 +45,8 @@ resource "aws_security_group" "ec2" {
 }
 
 resource "aws_security_group" "rds" {
+  count = var.enable_rds ? 1 : 0
+
   name        = "${local.name_prefix}-rds-sg"
   description = "CloudNotes RDS PostgreSQL security group"
   vpc_id      = aws_vpc.main.id

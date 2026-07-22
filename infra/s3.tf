@@ -29,6 +29,6 @@ resource "aws_s3_bucket_versioning" "attachments" {
   bucket = aws_s3_bucket.attachments.id
 
   versioning_configuration {
-    status = "Enabled"
+    status = var.s3_versioning_enabled ? "Enabled" : "Suspended"
   }
 }

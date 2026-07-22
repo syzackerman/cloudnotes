@@ -85,7 +85,7 @@ Optimistic locking is intentionally deferred. `@Version` on notes would be reaso
 ## Deployment
 
 - Docker provides a repeatable application artifact.
-- Terraform documents the AWS shape: EC2, RDS PostgreSQL, S3, ECR, IAM, and security groups.
+- Terraform documents the low-cost AWS shape: one EC2 host running Dockerized app/PostgreSQL/Nginx, plus S3, ECR, IAM, SSM, and security groups. RDS remains optional and disabled by default.
 - EC2 uses an IAM role for AWS access instead of long-lived access keys.
 - GitHub Actions uses OIDC for deployment credentials and avoids deploying from pull requests.
 - The first production topology is single-instance and not highly available. A multi-AZ or container-orchestrated deployment would be the next availability step.
