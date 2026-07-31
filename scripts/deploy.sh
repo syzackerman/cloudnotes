@@ -103,6 +103,8 @@ echo "Pulling CloudNotes image $IMAGE_URI"
 ecr_login_if_needed "$IMAGE_URI"
 docker pull "$IMAGE_URI"
 
+load_ssm_parameters
+
 export ECR_IMAGE_URI="$IMAGE_URI"
 if ! "$APP_DIR/scripts/start-production.sh"; then
   echo "Failed to start CloudNotes with $IMAGE_URI" >&2
