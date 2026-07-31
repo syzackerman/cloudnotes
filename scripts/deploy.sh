@@ -33,6 +33,51 @@ ecr_login_if_needed() {
   fi
 }
 
+load_ssm_parameters() {
+  require_command aws
+
+  local prefix="${SSM_PARAMETER_PREFIX:-/cloudnotes/prod}"
+
+  export DATABASE_URL="$(
+    aws ssm get-parameter \
+      --name "${prefix}/database-url" \
+      --with-decryption \
+      --query 'Parameter.Value' \
+      --output text
+  )"
+
+  export DATABASE_USERNAME="$(
+    aws ssm get-parameter \
+      --name "${prefix}/database-username" \
+      --with-decryption \
+      --query 'Parameter.Value' \
+      --output text
+  )"
+
+  export DATABASE_PASSWORD="$(
+    aws ssm get-parameter \
+      --name "${prefix}/database-password" \
+      --with-decryption \
+      --query 'Parameter.Value' \
+      --output text
+  )"
+
+  export JWT_SECRET="$(
+    aws ssm get-parameter \
+      --name "${prefix}/jwt-secret" \
+      --with-decryption \
+      --query 'Parameter.Value' \
+      --output text
+  )"
+
+  export AWS_S3_BUCKET="${AWS_S3_BUCKET:-$(
+    aws ssm get-parameter \
+      --name "${prefix}/s3-bucket" \
+      --query 'Parameter.Value' \
+      --output text
+  )}"
+}
+
 wait_for_health() {
   local deadline=$((SECONDS + HEALTH_TIMEOUT_SECONDS))
   while (( SECONDS < deadline )); do
